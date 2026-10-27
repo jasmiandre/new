@@ -1,12 +1,15 @@
-# Basis data lokal — berisi data pribadi, jangan ikut di-commit.
-*.db
-*.db-shm
-*.db-wal
-
 # Hasil kompilasi
 /new
-/habit
+/situs
 *.exe
+
+# Hasil build frontend: dibangkitkan oleh "npm run build" di dalam web/,
+# lalu ditanam ke binari Go saat kompilasi.
+/web/dist/*
+!/web/dist/.gitkeep
+
+# Dependensi Node
+node_modules/
 
 # Berkas profil dan cakupan tes
 *.out

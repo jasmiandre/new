@@ -1,0 +1,409 @@
+/* Gaya situs. Warna teks dikendalikan dari JavaScript lewat peubah --teks dan
+   kawan-kawannya, karena nilainya dicampur mengikuti peralihan tema dunia 3D. */
+
+@import "@fontsource-variable/geist/index.css";
+@import "@fontsource-variable/geist-mono/index.css";
+
+:root {
+  --teks: #f3f6fb;
+  --teks-redup: #9fb0c9;
+  --garis: rgba(255, 255, 255, 0.18);
+  --panel: rgba(8, 12, 20, 0.55);
+  --aksen: #2f6bff;
+  --aksen-teks: #ffffff;
+  --latar: #04060c;
+  --latar-rgb: 4 6 12;
+
+  --sisi: clamp(1.25rem, 4vw, 3.5rem);
+  --nav-tinggi: 4.5rem;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: auto; }
+
+body {
+  margin: 0;
+  background: var(--latar);
+  color: var(--teks);
+  font-family: "Geist Variable", system-ui, -apple-system, sans-serif;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Lenis mengambil alih gulir; kelas ini dipasang olehnya. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+
+#dunia {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+/* Peredup lembut di tepi kiri dan bawah. Tanpa ini, judul besar bisa jatuh
+   tepat di atas tile terang dan kehilangan kontras. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    linear-gradient(100deg,
+      rgb(var(--latar-rgb) / 0.88) 0%,
+      rgb(var(--latar-rgb) / 0.58) 26%,
+      rgb(var(--latar-rgb) / 0) 58%),
+    linear-gradient(to top,
+      rgb(var(--latar-rgb) / 0.6) 0%,
+      rgb(var(--latar-rgb) / 0) 34%);
+}
+
+.lewati {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  background: var(--aksen);
+  color: var(--aksen-teks);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transform: translateY(-150%);
+  transition: transform 0.18s ease;
+}
+
+.lewati:focus-visible { transform: none; }
+
+/* --- navigasi --- */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  height: var(--nav-tinggi);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 var(--sisi);
+  mix-blend-mode: normal;
+}
+
+.jenama {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--teks);
+  text-decoration: none;
+}
+
+.nav-tautan {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-tautan a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--teks);
+  text-decoration: none;
+  font-size: 0.92rem;
+  opacity: 0.86;
+  transition: opacity 0.15s ease;
+}
+
+.nav-tautan a:hover { opacity: 1; }
+
+/* Kotak [+] kecil di sebelah tiap butir menu. */
+.nav-tautan a::after {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1px solid var(--garis);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  line-height: 1;
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+}
+
+.bahasa {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+}
+
+.bahasa span {
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  color: var(--teks-redup);
+}
+
+.bahasa span[aria-current="true"] {
+  border: 1px solid var(--garis);
+  color: var(--teks);
+}
+
+.tombol {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.tombol-utama { background: var(--aksen); color: var(--aksen-teks); }
+.tombol-utama:hover { transform: translateY(-1px); }
+
+.tombol-sunyi {
+  border-color: var(--garis);
+  color: var(--teks);
+  background: transparent;
+}
+
+.tombol-sunyi:hover { border-color: var(--teks); }
+
+.nav .tombol { padding: 0.5rem 0.95rem; }
+
+@media (max-width: 900px) {
+  .nav-tautan, .bahasa { display: none; }
+}
+
+/* --- bab --- */
+
+/* Tiap bab tinggi; isinya menempel di layar sementara kamera terbang. */
+.bab {
+  position: relative;
+  height: 260vh;
+  z-index: 10;
+}
+
+.bab-isi {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  align-content: center;
+  padding: var(--nav-tinggi) var(--sisi) 7rem;
+  pointer-events: none;
+}
+
+/* Hanya elemen yang benar-benar bisa ditekan yang menerima tetikus kembali. */
+.bab-isi a, .bab-isi button { pointer-events: auto; }
+
+.kicker {
+  margin: 0 0 1.1rem;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: var(--teks);
+  opacity: 0.8;
+}
+
+.judul {
+  margin: 0;
+  font-size: clamp(2.7rem, 9.5vw, 9rem);
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  max-width: 16ch;
+}
+
+.judul span { display: block; }
+
+.sokong {
+  margin: 2rem 0 0;
+  max-width: 34ch;
+  font-size: clamp(0.95rem, 1.2vw, 1.08rem);
+  line-height: 1.6;
+  color: var(--teks-redup);
+}
+
+.aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1.9rem;
+}
+
+/* Bab sambutan menaruh paragraf dan tombol di kanan bawah, seperti acuan. */
+.bab[data-tata="sambutan"] .bab-isi {
+  grid-template-columns: 1fr;
+  align-content: end;
+  padding-bottom: 8.5rem;
+}
+
+@media (min-width: 1000px) {
+  .bab[data-tata="sambutan"] .bab-isi {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+    align-items: end;
+    column-gap: 3rem;
+  }
+  .bab[data-tata="sambutan"] .kicker,
+  .bab[data-tata="sambutan"] .judul { grid-column: 1; }
+  .bab[data-tata="sambutan"] .sisi-kanan {
+    grid-column: 2;
+    justify-self: end;
+    max-width: 24rem;
+  }
+  .bab[data-tata="sambutan"] .sokong { margin-top: 0; }
+}
+
+/* --- daftar proses --- */
+
+.butir {
+  display: grid;
+  gap: 0.9rem;
+  margin: 2.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: 44rem;
+}
+
+.butir li {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--garis);
+}
+
+.butir b {
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teks-redup);
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 700px) {
+  .butir li { grid-template-columns: 9rem 1fr; }
+  .butir b { grid-column: 1; padding-top: 0.2rem; }
+}
+
+.butir p {
+  margin: 0;
+  color: var(--teks-redup);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+/* --- HUD bab --- */
+
+.hud {
+  position: fixed;
+  left: var(--sisi);
+  bottom: 1.6rem;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+
+.hud-nomor {
+  display: grid;
+  place-items: center;
+  min-width: 2.3rem;
+  padding: 0.5rem;
+  background: var(--aksen);
+  color: var(--aksen-teks);
+  font-weight: 500;
+}
+
+.hud-nama {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--garis);
+  border-left: none;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+}
+
+.hud-nama small {
+  font-size: 0.58rem;
+  opacity: 0.6;
+  letter-spacing: 0.14em;
+}
+
+.hud-nama strong {
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--teks);
+}
+
+/* --- penunjuk khusus --- */
+
+.penunjuk {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 1px solid var(--teks);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, width 0.18s ease, height 0.18s ease,
+              margin 0.18s ease, background 0.18s ease;
+}
+
+.penunjuk.tampak { opacity: 0.75; }
+
+.penunjuk.besar {
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  background: color-mix(in srgb, var(--teks) 14%, transparent);
+}
+
+/* Penunjuk khusus hanya untuk tetikus; peranti sentuh memakai bawaannya. */
+@media (hover: none), (pointer: coarse) {
+  .penunjuk { display: none; }
+}
+
+/* --- lain-lain --- */
+
+.tanpa-js {
+  position: relative;
+  z-index: 20;
+  margin: var(--nav-tinggi) var(--sisi) 0;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--garis);
+  border-radius: 6px;
+  color: var(--teks-redup);
+  font-size: 0.9rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--aksen);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .penunjuk { display: none; }
+  .tombol { transition: none; }
+}

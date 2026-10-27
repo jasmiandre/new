@@ -6,17 +6,33 @@ on:
   pull_request:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
           cache: true
 
-      - name: Periksa format
+      - name: Pasang dependensi frontend
+        run: cd web && npm ci
+
+      - name: Periksa tipe frontend
+        run: cd web && npx tsc --noEmit
+
+      # Binari Go menanam web/dist, jadi frontend harus dibangun lebih dulu.
+      - name: Bangun frontend
+        run: cd web && npm run build
+
+      - name: Periksa format Go
         run: |
           if [ -n "$(gofmt -l .)" ]; then
             echo "Berkas berikut belum terformat:"
@@ -27,8 +43,8 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: Tes
+      - name: Tes Go
         run: go test -race ./...
 
-      - name: Build
-        run: go build ./...
+      - name: Bangun binari
+        run: go build -o situs .

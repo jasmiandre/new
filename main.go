@@ -1,7 +1,8 @@
-// Command new menjalankan pelacak habit sebagai server web lokal.
+// Command new menyajikan situs sebagai satu binari mandiri.
 //
-// Seluruh antarmuka (HTML, CSS, JavaScript) ditanam ke dalam binari, jadi
-// program ini satu berkas saja — tanpa runtime dan tanpa aset terpisah.
+// Seluruh HTML, CSS, JavaScript, dan font hasil build Vite ditanam ke dalam
+// berkas yang bisa dijalankan ini, jadi memasangnya cukup dengan menyalin satu
+// berkas — tanpa Node, tanpa direktori aset terpisah.
 package main
 
 import (
@@ -15,9 +16,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/jasmiandre/new/internal/store"
-	"github.com/jasmiandre/new/internal/web"
 )
 
 func main() {
@@ -28,38 +26,27 @@ func main() {
 }
 
 func jalankan() error {
-	var (
-		addr   = flag.String("addr", "127.0.0.1:8080", "alamat dengar, misal 127.0.0.1:8080")
-		dbPath = flag.String("db", "habits.db", "jalur berkas basis data SQLite")
-	)
+	addr := flag.String("addr", "127.0.0.1:8080", "alamat dengar, misal 127.0.0.1:8080")
 	flag.Parse()
 
-	st, err := store.Open(*dbPath)
-	if err != nil {
-		return err
-	}
-	defer st.Close()
-
-	srv, err := web.New(st, web.Options{Logger: slog.Default()})
+	handler, err := buatHandler()
 	if err != nil {
 		return err
 	}
 
 	httpSrv := &http.Server{
 		Addr:              *addr,
-		Handler:           srv,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
-	// Sinyal dari terminal harus menutup server dengan rapi supaya transaksi
-	// SQLite yang sedang berjalan tidak terpotong.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	galat := make(chan error, 1)
 	go func() {
-		slog.Info("pelacak habit siap", "alamat", "http://"+*addr, "basis_data", *dbPath)
+		slog.Info("situs siap", "alamat", "http://"+*addr)
 		fmt.Fprintf(os.Stderr, "\n  Buka http://%s di peramban.\n\n", *addr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			galat <- err

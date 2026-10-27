@@ -1,0 +1,13 @@
+# Basis data lokal — berisi data pribadi, jangan ikut di-commit.
+*.db
+*.db-shm
+*.db-wal
+
+# Hasil kompilasi
+/new
+/habit
+*.exe
+
+# Berkas profil dan cakupan tes
+*.out
+*.prof

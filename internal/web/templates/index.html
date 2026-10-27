@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pelacak Habit</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9989;</text></svg>">
+</head>
+<body>
+<main class="bungkus">
+
+  <header class="kepala">
+    <div>
+      <h1>Pelacak Habit</h1>
+      <p class="tanggal">Hari ini &middot; {{ .HariIni }}</p>
+    </div>
+    <form class="tambah" method="post" action="/habits">
+      <label class="sr-only" for="nama">Nama habit baru</label>
+      <input id="nama" name="nama" type="text" maxlength="60" required
+             placeholder="Habit baru, misal: Lari pagi" autocomplete="off">
+      <button type="submit">Tambah</button>
+    </form>
+  </header>
+
+  {{ with .Galat }}
+  <p class="galat" role="alert">{{ . }}</p>
+  {{ end }}
+
+  {{ if not .Kartu }}
+  <section class="kosong">
+    <h2>Belum ada habit yang dilacak</h2>
+    <p>Tambahkan satu kebiasaan di atas untuk mulai. Beberapa contoh yang sering dipakai:</p>
+    <ul>
+      <li>Lari pagi 20 menit</li>
+      <li>Baca buku 10 halaman</li>
+      <li>Minum air 2 liter</li>
+      <li>Tidur sebelum jam 23.00</li>
+    </ul>
+  </section>
+  {{ end }}
+
+  {{ range .Kartu }}
+  <section class="kartu" style="--warna: {{ .Color }}" data-habit="{{ .ID }}">
+
+    <div class="kartu-kepala">
+      <h2>{{ .Name }}</h2>
+
+      <button class="toggle-harian{{ if .SelesaiHarian }} aktif{{ end }}"
+              type="button"
+              data-toggle-harian
+              data-habit="{{ .ID }}"
+              data-hari="{{ $.HariIni }}"
+              aria-pressed="{{ if .SelesaiHarian }}true{{ else }}false{{ end }}">
+        <span class="centang" aria-hidden="true">&#10003;</span>
+        <span data-label-harian>{{ if .SelesaiHarian }}Selesai hari ini{{ else }}Tandai hari ini{{ end }}</span>
+      </button>
+
+      <details class="menu">
+        <summary aria-label="Pengaturan habit {{ .Name }}">&middot;&middot;&middot;</summary>
+        <div class="menu-isi">
+          <form method="post" action="/habits/{{ .ID }}/rename">
+            <label class="sr-only" for="ganti-{{ .ID }}">Nama baru</label>
+            <input id="ganti-{{ .ID }}" name="nama" type="text" maxlength="60" required
+                   value="{{ .Name }}" autocomplete="off">
+            <button type="submit">Simpan nama</button>
+          </form>
+          <form method="post" action="/habits/{{ .ID }}/delete"
+                data-konfirmasi="Hapus habit &quot;{{ .Name }}&quot; beserta seluruh riwayatnya?">
+            <button type="submit" class="hapus">Hapus habit</button>
+          </form>
+        </div>
+      </details>
+    </div>
+
+    <div class="kartu-isi">
+
+    <dl class="statistik">
+      <div>
+        <dt>Runtutan</dt>
+        <dd><strong data-stat="current">{{ .Stats.Current }}</strong> hari</dd>
+      </div>
+      <div>
+        <dt>Terbaik</dt>
+        <dd><strong data-stat="best">{{ .Stats.Best }}</strong> hari</dd>
+      </div>
+      <div>
+        <dt>{{ .Stats.Window }} hari terakhir</dt>
+        <dd><strong data-stat="done">{{ .Stats.Done }}</strong> hari &middot; <span data-stat="rate">{{ .Stats.Rate }}</span>%</dd>
+      </div>
+    </dl>
+
+    <div class="grid-bungkus">
+      <div class="nama-hari" aria-hidden="true">
+        {{ range $.NamaHari }}<span>{{ . }}</span>{{ end }}
+      </div>
+      <div class="grid" style="--weeks: {{ $.Weeks }}" role="group"
+           aria-label="Riwayat {{ $.Weeks }} minggu untuk {{ .Name }}">
+        {{ range .Sel }}
+          {{ if .Depan }}
+          <span class="sel depan" aria-hidden="true"></span>
+          {{ else }}
+          <button class="sel{{ if .Selesai }} selesai{{ end }}{{ if .IniHariIni }} hari-ini{{ end }}"
+                  type="button"
+                  data-sel
+                  data-hari="{{ .Tanggal }}"
+                  title="{{ .Tanggal }}"
+                  aria-pressed="{{ if .Selesai }}true{{ else }}false{{ end }}"
+                  aria-label="{{ .Tanggal }}"></button>
+          {{ end }}
+        {{ end }}
+      </div>
+    </div>
+
+    </div>
+
+  </section>
+  {{ end }}
+
+  <footer class="kaki">
+    <p>Klik kotak mana pun untuk menandai hari itu. Data tersimpan di berkas SQLite di komputermu.</p>
+  </footer>
+
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

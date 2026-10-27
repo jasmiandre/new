@@ -1,0 +1,399 @@
+/* Pelacak Habit — gaya tunggal, tanpa kerangka kerja apa pun. */
+
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-tepi: #262b36;
+  --teks: #e7e9ee;
+  --teks-redup: #9aa2b1;
+  --kosong: #21262f;
+  --aksen: #f97316;
+  --galat-bg: #3b1d1d;
+  --galat-tepi: #7f3535;
+  --galat-teks: #fca5a5;
+  --radius: 12px;
+  --radius-kecil: 4px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-tepi: #e3e6ec;
+    --teks: #1a1d24;
+    --teks-redup: #5f6775;
+    --kosong: #e8ebf0;
+    --galat-bg: #fdeaea;
+    --galat-tepi: #f3b4b4;
+    --galat-teks: #a32020;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--teks);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bungkus {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- kepala --- */
+
+.kepala {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+}
+
+.kepala h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.tanggal {
+  margin: 0.25rem 0 0;
+  color: var(--teks-redup);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tambah {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input[type="text"] {
+  background: var(--panel);
+  color: var(--teks);
+  border: 1px solid var(--panel-tepi);
+  border-radius: var(--radius-kecil);
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+  font-size: 0.95rem;
+  min-width: 0;
+}
+
+input[type="text"]:focus-visible {
+  outline: 2px solid var(--aksen);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-kecil);
+  border: 1px solid var(--panel-tepi);
+  background: var(--panel);
+  color: var(--teks);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.95rem;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+button:hover { border-color: var(--teks-redup); }
+
+button:focus-visible {
+  outline: 2px solid var(--aksen);
+  outline-offset: 1px;
+}
+
+.tambah button {
+  background: var(--aksen);
+  border-color: var(--aksen);
+  color: #1a1004;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- pesan & keadaan kosong --- */
+
+.galat {
+  background: var(--galat-bg);
+  border: 1px solid var(--galat-tepi);
+  color: var(--galat-teks);
+  border-radius: var(--radius-kecil);
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.92rem;
+}
+
+.kosong {
+  background: var(--panel);
+  border: 1px dashed var(--panel-tepi);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  text-align: center;
+}
+
+.kosong h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.kosong p { margin: 0 0 1rem; color: var(--teks-redup); font-size: 0.92rem; }
+
+.kosong ul {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kosong li {
+  background: var(--kosong);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--teks-redup);
+}
+
+/* --- kartu habit --- */
+
+.kartu {
+  background: var(--panel);
+  border: 1px solid var(--panel-tepi);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  /* Garis warna di tepi kiri membuat tiap habit mudah dibedakan sekilas. */
+  border-left: 3px solid var(--warna, var(--aksen));
+}
+
+.kartu-kepala {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.kartu-kepala h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toggle-harian {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.toggle-harian .centang {
+  display: inline-grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--teks-redup);
+  font-size: 0.7rem;
+  line-height: 1;
+  color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.toggle-harian.aktif {
+  border-color: var(--warna, var(--aksen));
+  color: var(--warna, var(--aksen));
+  font-weight: 600;
+}
+
+.toggle-harian.aktif .centang {
+  background: var(--warna, var(--aksen));
+  border-color: var(--warna, var(--aksen));
+  color: #0f1115;
+}
+
+/* --- menu per habit --- */
+
+.menu { position: relative; flex: 0 0 auto; }
+
+.menu summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-kecil);
+  color: var(--teks-redup);
+  letter-spacing: 0.1em;
+  user-select: none;
+}
+
+.menu summary::-webkit-details-marker { display: none; }
+.menu summary:hover { background: var(--kosong); color: var(--teks); }
+
+.menu summary:focus-visible {
+  outline: 2px solid var(--aksen);
+  outline-offset: 1px;
+}
+
+.menu-isi {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 10;
+  width: min(17rem, calc(100vw - 3rem));
+  display: grid;
+  gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-tepi);
+  border-radius: var(--radius-kecil);
+  padding: 0.75rem;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.menu-isi form { display: grid; gap: 0.4rem; }
+.menu-isi input[type="text"] { width: 100%; }
+.hapus { color: var(--galat-teks); border-color: var(--galat-tepi); }
+.hapus:hover { background: var(--galat-bg); }
+
+/* --- statistik --- */
+
+/* Grid dan statistik berdampingan agar lebar kartu terpakai. Urutan DOM
+   tetap statistik lebih dulu (angka ringkas sebelum detail), lalu ditukar
+   secara visual dengan order. */
+.kartu-isi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+}
+
+.statistik {
+  order: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 0;
+}
+
+.statistik dt {
+  color: var(--teks-redup);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.15rem;
+}
+
+.statistik dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--teks-redup);
+  font-variant-numeric: tabular-nums;
+}
+
+.statistik dd strong {
+  font-size: 1.25rem;
+  color: var(--teks);
+  font-weight: 650;
+}
+
+/* --- grid riwayat --- */
+
+.grid-bungkus {
+  order: 1;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.nama-hari {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.nama-hari span {
+  font-size: 0.62rem;
+  color: var(--teks-redup);
+  line-height: 15px;
+  text-align: right;
+  padding-right: 0.15rem;
+}
+
+.grid {
+  display: grid;
+  /* Kotak dikeluarkan kolom demi kolom: satu kolom = satu minggu, Senin di atas. */
+  grid-template-rows: repeat(7, 15px);
+  grid-auto-flow: column;
+  grid-auto-columns: 15px;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.sel {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: var(--kosong);
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.sel:hover { transform: scale(1.18); }
+.sel.selesai { background: var(--warna, var(--aksen)); }
+.sel.hari-ini { box-shadow: inset 0 0 0 1.5px var(--teks-redup); }
+.sel.depan { opacity: 0.25; cursor: default; }
+.sel.depan:hover { transform: none; }
+
+.sel:focus-visible {
+  outline: 2px solid var(--aksen);
+  outline-offset: 1px;
+}
+
+/* --- kaki --- */
+
+.kaki {
+  margin-top: 2rem;
+  color: var(--teks-redup);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.kaki p { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .sel:hover { transform: none; }
+}
+
+@media (max-width: 760px) {
+  /* Pada layar sempit, kembalikan ke tumpukan vertikal dengan angka di atas. */
+  .kartu-isi { display: block; }
+  .statistik { margin-bottom: 1.1rem; }
+}
+
+@media (max-width: 560px) {
+  .tambah { width: 100%; }
+  .tambah input { flex: 1 1 auto; }
+  .statistik { gap: 1.1rem; }
+}

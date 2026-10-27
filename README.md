@@ -11,9 +11,12 @@ JavaScript, dan font — memasangnya cukup menyalin satu berkas.
 - **Satu dunia 3D berkelanjutan.** Bidang grid tak hingga dengan penanda `+`,
   digambar lewat shader dalam koordinat dunia, bukan tekstur — jadi tetap tajam
   pada jarak berapa pun dan tidak pernah terlihat berulang.
-- **Kamera digerakkan gulir.** Posisi kamera adalah fungsi murni dari kemajuan
-  gulir 0..1. Menggulir mundur selalu menghasilkan kerangka yang persis sama;
-  tidak ada keadaan tersembunyi yang bisa melenceng.
+- **Kamera digerakkan gulir.** Posisi kamera, pijar grid, dan peralihan tema
+  adalah fungsi murni dari kemajuan gulir 0..1, jadi menggulir naik menempuh
+  lintasan yang persis sama seperti saat turun — tidak ada keadaan tersembunyi
+  yang bisa melenceng. Tile di atas grid menambah ayunan pelan berbasis waktu,
+  jadi gulir mundur bukan pemutaran mundur rekaman: lintasannya sama, tetapi
+  tiap kerangka tetap hidup.
 - **Pembalikan tema.** Dunia berbalik dari hitam ke putih saat masuk bab Karya,
   dan warna antarmuka ikut dicampur agar teks tetap terbaca sepanjang peralihan.
 - **Tile mengkilap tanpa aset.** Glif digambar ke `<canvas>` saat runtime, jadi

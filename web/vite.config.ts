@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/",
+  base: "./",
   build: {
     // Berkas hasil build ditanam ke dalam binari Go, jadi jaga agar ringkas.
     target: "es2022",

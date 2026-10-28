@@ -1,7 +1,7 @@
-// Lapisan antarmuka: navigasi, bab, HUD, dan penunjuk khusus.
+// Lapisan antarmuka: navigasi, bab, dan HUD.
 //
-// Seluruh isi dibangun dari src/content.ts, jadi menambah atau menata ulang bab
-// cukup dilakukan di sana — berkas ini tidak memuat naskah apa pun.
+// Seluruh isi dibangun dari src/content.ts, jadi berkas ini tidak memuat
+// naskah apa pun.
 
 import { chapters, situs, type Chapter } from "./content";
 
@@ -17,16 +17,20 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 };
 
 export function bangunNav(wadah: HTMLElement) {
-  const jenama = el("a", "jenama", situs.nama);
+  const jenama = el("a", "jenama");
   jenama.href = "#isi";
+  jenama.append(el("span", "jenama-tanda", "▤"), el("span", undefined, situs.nama));
 
   const tautan = el("nav", "nav-tautan");
   tautan.setAttribute("aria-label", "Navigasi utama");
-  situs.nav.forEach((nama, i) => {
-    const a = el("a", undefined, nama);
-    a.href = `#bab-${i}`;
+  situs.nav.forEach((n) => {
+    const a = el("a", undefined, n.label);
+    a.href = n.href;
     tautan.append(a);
   });
+
+  const status = el("div", "status");
+  status.append(el("span", "status-titik"), el("span", undefined, situs.status));
 
   const bahasa = el("div", "bahasa");
   bahasa.setAttribute("aria-label", "Pilihan bahasa");
@@ -39,40 +43,43 @@ export function bangunNav(wadah: HTMLElement) {
   const cta = el("a", "tombol tombol-utama", situs.cta.label);
   cta.href = situs.cta.href;
 
-  wadah.append(jenama, tautan, bahasa, cta);
+  wadah.append(jenama, tautan, status, bahasa, cta);
 }
 
 function bangunSatuBab(bab: Chapter, indeks: number): HTMLElement {
   const bagian = el("section", "bab");
   bagian.id = `bab-${indeks}`;
-  bagian.dataset.bab = String(indeks);
-  if (indeks === 0) bagian.dataset.tata = "sambutan";
+  bagian.dataset.tata = bab.tata;
   bagian.setAttribute("aria-label", `${bab.nomor} — ${bab.nama}`);
 
   const isi = el("div", "bab-isi");
+  const kolom = el("div", "kolom");
 
-  if (bab.kicker) isi.append(el("p", "kicker", bab.kicker));
-
-  if (bab.judul) {
-    const h = el(indeks === 0 ? "h1" : "h2", "judul");
-    bab.judul.forEach((baris) => h.append(el("span", undefined, baris)));
-    isi.append(h);
+  if (bab.kicker) {
+    const k = el("p", "kicker");
+    k.append(el("span", undefined, bab.kicker));
+    kolom.append(k);
   }
 
-  // Bab sambutan mengelompokkan paragraf dan tombol di kolom kanan.
-  const tujuan = indeks === 0 ? el("div", "sisi-kanan") : isi;
+  const h = el(indeks === 0 ? "h1" : "h2", "judul");
+  bab.judul.forEach((baris) => h.append(el("span", undefined, baris)));
+  kolom.append(h);
 
-  if (bab.teks) tujuan.append(el("p", "sokong", bab.teks));
+  if (bab.teks) kolom.append(el("p", "sokong", bab.teks));
 
-  if (bab.butir) {
-    const ul = el("ul", "butir");
-    bab.butir.forEach((b) => {
-      const li = el("li");
-      li.append(el("b", undefined, b.label), el("p", undefined, b.teks));
-      ul.append(li);
+  if (bab.metrik) {
+    const daftar = el("dl", "metrik");
+    bab.metrik.forEach((m) => {
+      const kotak = el("div");
+      kotak.append(el("dt", undefined, m.nilai), el("dd", undefined, m.label));
+      daftar.append(kotak);
     });
-    tujuan.append(ul);
+    kolom.append(daftar);
   }
+
+  // Catatan status sengaja ditaruh setelah metrik: ia membatasi klaim di
+  // atasnya, jadi harus terbaca bersama angka-angka itu.
+  if (bab.catatan) kolom.append(el("p", "catatan", bab.catatan));
 
   if (bab.aksi) {
     const kotak = el("div", "aksi");
@@ -81,10 +88,10 @@ function bangunSatuBab(bab: Chapter, indeks: number): HTMLElement {
       tombol.href = a.href;
       kotak.append(tombol);
     });
-    tujuan.append(kotak);
+    kolom.append(kotak);
   }
 
-  if (tujuan !== isi) isi.append(tujuan);
+  isi.append(kolom);
   bagian.append(isi);
   return bagian;
 }
@@ -104,9 +111,8 @@ export class Hud {
   constructor(wadah: HTMLElement) {
     this.nomor = el("div", "hud-nomor");
     const kotak = el("div", "hud-nama");
-    const label = el("small", undefined, "CHAPTER");
     this.nama = el("strong");
-    kotak.append(label, this.nama);
+    kotak.append(el("small", undefined, "BAB"), this.nama);
     wadah.append(this.nomor, kotak);
     this.perbarui(0);
   }
@@ -137,39 +143,15 @@ export class Penunjuk {
       this.tujuanX = e.clientX;
       this.tujuanY = e.clientY;
       this.simpul.classList.add("tampak");
-
       const atas = (e.target as Element | null)?.closest("a, button");
       this.simpul.classList.toggle("besar", !!atas);
     });
-
     document.addEventListener("pointerleave", () => this.simpul.classList.remove("tampak"));
   }
 
-  /** Dipanggil tiap kerangka; mengejar posisi tetikus agar terasa punya bobot. */
   perbarui() {
     this.x += (this.tujuanX - this.x) * 0.18;
     this.y += (this.tujuanY - this.y) * 0.18;
     this.simpul.style.transform = `translate3d(${this.x}px, ${this.y}px, 0)`;
   }
-}
-
-/**
- * Mencampur warna antarmuka mengikuti tema dunia 3D, supaya teks tetap
- * terbaca ketika latar berbalik dari hitam ke putih.
- */
-export function terapkanTemaAntarmuka(nilai: number) {
-  const campur = (gelap: number[], terang: number[]) =>
-    gelap.map((v, i) => Math.round(v + (terang[i]! - v) * nilai));
-  const rgb = (c: number[]) => `rgb(${c[0]} ${c[1]} ${c[2]})`;
-  const rgba = (c: number[], a: number) => `rgb(${c[0]} ${c[1]} ${c[2]} / ${a})`;
-
-  const akar = document.documentElement.style;
-  akar.setProperty("--teks", rgb(campur([243, 246, 251], [9, 14, 24])));
-  akar.setProperty("--teks-redup", rgb(campur([159, 176, 201], [85, 99, 122])));
-  akar.setProperty("--garis", rgba(campur([255, 255, 255], [10, 16, 28]), 0.18 + nilai * 0.08));
-  akar.setProperty("--panel", rgba(campur([8, 12, 20], [255, 255, 255]), 0.55));
-  const latar = campur([4, 6, 12], [236, 239, 245]);
-  akar.setProperty("--latar", rgb(latar));
-  // Dipakai scrim, yang perlu warna latar dengan alfa yang berubah-ubah.
-  akar.setProperty("--latar-rgb", `${latar[0]} ${latar[1]} ${latar[2]}`);
 }

@@ -1,119 +1,152 @@
 // Seluruh naskah situs berkumpul di berkas ini.
 //
-// Mesin 3D tidak tahu apa-apa soal isi: ia hanya membaca daftar chapter di
-// bawah. Mengganti naskah, jumlah bab, atau urutannya cukup dilakukan di sini.
+// Mesin 3D tidak tahu apa-apa soal isi: ia hanya membaca daftar bab di bawah,
+// dan satu medan `fase` yang memberi tahu keadaan apa yang harus digambarkan
+// oleh diagram cluster.
 
-/** Nama glif yang boleh dipakai sebuah tile. Lihat src/world/glyphs.ts. */
-export type NamaGlif =
-  | "kode"
-  | "gelombang"
-  | "kursor"
-  | "kilau"
-  | "kubus"
-  | "lapisan"
-  | "obrolan"
-  | "diagram"
-  | "panah"
-  | "kisi"
-  | "mata"
-  | "simpul";
+/** Keadaan cluster yang digambarkan dunia 3D pada sebuah bab. */
+export type Fase =
+  | "normal"
+  | "gangguan"
+  | "izin-habis"
+  | "pemimpin-baru"
+  | "kembali";
 
-export type Tema = "gelap" | "terang";
+/** Tata letak naskah: rata tengah untuk pembuka dan penutup, kiri untuk narasi. */
+export type Tata = "tengah" | "kiri";
+
+export interface Metrik {
+  nilai: string;
+  label: string;
+}
 
 export interface Chapter {
-  /** Nomor dua digit yang tampil di HUD, misal "01". */
   nomor: string;
-  /** Nama bab di HUD, selalu tampil dalam huruf besar. */
   nama: string;
-  /** Tema dunia 3D selama bab ini berlangsung. */
-  tema: Tema;
-  /** Baris kecil di atas judul. */
+  tata: Tata;
+  fase: Fase;
   kicker?: string;
-  /** Judul besar. Baris dipisah agar pemenggalannya terkendali. */
-  judul?: string[];
-  /** Paragraf pendukung. */
+  judul: string[];
   teks?: string;
-  /** Daftar butir, dipakai bab PROCESS. */
-  butir?: { label: string; teks: string }[];
-  /** Tautan aksi. */
+  /** Baris kecil bermonospace di bawah paragraf, untuk catatan status. */
+  catatan?: string;
+  metrik?: Metrik[];
   aksi?: { label: string; href: string; utama?: boolean }[];
 }
 
 export const situs = {
-  nama: "STUDIO",
-  tagline: "Pengalaman web yang digerakkan gerak",
-  nav: ["Tentang", "Karya", "Proses", "Studio"],
+  nama: "panel.ai.id",
+  nav: [
+    { label: "Cara kerja", href: "#bab-1" },
+    { label: "Failover", href: "#bab-3" },
+    { label: "Akses awal", href: "#bab-6" },
+  ],
+  status: "7/7 sehat",
   bahasa: ["ID", "EN"],
-  cta: { label: "Mulai proyek", href: "#studio" },
+  cta: { label: "Akses awal", href: "https://panel.ai.id/" },
 };
 
 export const chapters: Chapter[] = [
   {
     nomor: "00",
-    nama: "Selamat datang",
-    tema: "gelap",
-    kicker: "Kami membangun pengalaman web yang bergerak",
-    judul: ["Gerak,", "yang dirancang."],
+    nama: "Panel",
+    tata: "tengah",
+    fase: "normal",
+    kicker: "AKSES AWAL · Terbuka untuk penyedia hosting",
+    judul: ["Satu panel untuk semua", "server hosting Anda."],
     teks:
-      "Situs interaktif untuk merek, kampanye, dan peluncuran produk. " +
-      "Kami merencanakannya, mendesainnya, lalu membangunnya.",
+      "Panel kontrol untuk penyedia hosting yang menjalankan lebih dari satu " +
+      "server. Website, DNS, backup, dan database pelanggan dikelola dari satu " +
+      "tempat. Pengendali dan database panel berjalan di tiga server: kalau satu " +
+      "mati, yang lain mengambil alih dalam belasan detik.",
+    catatan:
+      "Masih dalam pengembangan dan belum untuk produksi. Konsol web dan " +
+      "website pelanggan belum ikut pindah otomatis.",
     aksi: [
-      { label: "Lihat karya", href: "#karya", utama: true },
-      { label: "Mulai proyek", href: "#studio" },
+      { label: "Ajukan akses awal", href: "https://panel.ai.id/", utama: true },
+      { label: "Lihat cara kerjanya", href: "#bab-1" },
     ],
   },
   {
     nomor: "01",
-    nama: "Tentang",
-    tema: "gelap",
-    kicker: "Apa yang kami kerjakan",
-    judul: ["Dirancang cermat.", "Terasa hidup."],
+    nama: "Normal",
+    tata: "kiri",
+    fase: "normal",
+    kicker: "T+0 · NORMAL",
+    judul: ["Satu pengendali", "memimpin."],
     teks:
-      "Setiap bidang, bayang, dan jeda dihitung. Gerak bukan hiasan yang " +
-      "ditempel belakangan — ia bagian dari rancangan sejak halaman pertama.",
+      "Panel dikendalikan oleh tiga pengendali. ctl-2 menjadi pemimpin: ia " +
+      "memegang izin bernomor 41 di etcd dan terus memperbaruinya. Server " +
+      "hosting hanya menjalankan perintah dari pemimpin ini.",
   },
   {
     nomor: "02",
-    nama: "Karya",
-    tema: "terang",
-    kicker: "Pilihan proyek",
-    judul: ["Dari gagasan", "menjadi sesuatu", "yang bekerja."],
+    nama: "Gangguan",
+    tata: "kiri",
+    fase: "gangguan",
+    kicker: "T+1 · GANGGUAN",
+    judul: ["Pemimpin berhenti", "menjawab."],
     teks:
-      "Peluncuran produk, instalasi pameran, dan kampanye yang perlu " +
-      "terasa berbeda sejak detik pertama halaman terbuka.",
+      "Prosesnya macet, servernya hang, atau jaringannya putus. Kalau hanya " +
+      "pengendalinya yang bermasalah, website pelanggan tetap berjalan dan yang " +
+      "tertunda hanya perubahan baru dari panel.",
   },
   {
     nomor: "03",
-    nama: "Proses",
-    tema: "gelap",
-    kicker: "Cara kami bekerja",
-    judul: ["Satu tim.", "Setiap tahap."],
-    butir: [
-      { label: "Petakan", teks: "Menentukan satu gagasan yang dibawa seluruh halaman." },
-      { label: "Rancang", teks: "Tata letak, tipografi, dan gerak dirancang bersamaan." },
-      { label: "Bangun", teks: "Diimplementasikan langsung di peramban, bukan di prototipe." },
-      { label: "Rawat", teks: "Diukur, dirapikan, dan dijaga setelah diluncurkan." },
-    ],
+    nama: "Izin habis",
+    tata: "kiri",
+    fase: "izin-habis",
+    kicker: "T+2 · IZIN HABIS",
+    judul: ["Izin punya", "batas waktu."],
+    teks:
+      "Begitu batas waktunya lewat, izin nomor 41 tidak bisa diperpanjang lagi " +
+      "— juga oleh pemiliknya sendiri. Dua pengendali yang tersisa memilih " +
+      "pemimpin baru.",
   },
   {
     nomor: "04",
-    nama: "Studio",
-    tema: "gelap",
-    kicker: "Mari mulai",
-    judul: ["Pengalaman berikutmu,", "bersama kami."],
-    teks: "Ceritakan yang sedang kamu bangun. Kami balas dalam dua hari kerja.",
-    aksi: [{ label: "Kirim surel", href: "mailto:halo@contoh.id", utama: true }],
+    nama: "Pemimpin baru",
+    tata: "kiri",
+    fase: "pemimpin-baru",
+    kicker: "T+3 · PEMIMPIN BARU",
+    judul: ["Pemimpin baru", "dengan nomor baru."],
+    teks:
+      "Pemenangnya mendapat izin nomor 42, lebih tinggi dari semua nomor " +
+      "sebelumnya. Server hosting langsung mengikuti pemimpin baru tanpa diatur " +
+      "manual.",
+    metrik: [
+      { nilai: "1,5–2,2 dtk", label: "dihentikan normal" },
+      { nilai: "13,8 dtk", label: "dibekukan" },
+      { nilai: "17,5 dtk", label: "crash" },
+    ],
+    catatan: "Hasil uji di cluster pengembangan kami.",
+  },
+  {
+    nomor: "05",
+    nama: "Kembali",
+    tata: "kiri",
+    fase: "kembali",
+    kicker: "T+4 · KEMBALI",
+    judul: ["Pengendali lama hidup lagi,", "perintahnya ditolak."],
+    teks:
+      "Saat ctl-2 hidup lagi, perintahnya masih membawa nomor 41 dan langsung " +
+      "ditolak. Siapa pemimpinnya ditentukan oleh nomor izin; jam server tidak " +
+      "dipakai untuk itu.",
+  },
+  {
+    nomor: "06",
+    nama: "Akses awal",
+    tata: "tengah",
+    fase: "normal",
+    kicker: "AKSES AWAL",
+    judul: ["Coba lebih awal,", "bantu menentukan urutannya."],
+    teks:
+      "Terbuka untuk penyedia hosting yang menjalankan lebih dari satu server. " +
+      "Setiap fitur diberi label statusnya: sudah diuji di cluster pengembangan " +
+      "kami, atau segera hadir.",
+    aksi: [{ label: "Ajukan akses awal", href: "https://panel.ai.id/", utama: true }],
   },
 ];
 
-/**
- * Glif yang melayang di atas grid, satu set per bab.
- * Bab "Karya" sengaja memakai lebih sedikit tile tapi berukuran besar.
- */
-export const glifPerChapter: NamaGlif[][] = [
-  ["kode", "gelombang", "kursor", "kilau", "kubus", "simpul", "lapisan", "diagram"],
-  ["simpul", "lapisan", "kubus", "kursor", "kode", "obrolan", "diagram", "kilau", "mata", "kisi"],
-  ["kisi", "mata", "panah", "kubus", "kilau", "lapisan"],
-  ["kisi", "diagram", "lapisan", "simpul", "panah", "kode", "obrolan", "gelombang"],
-  ["kilau", "obrolan", "panah", "kursor", "kode", "kubus"],
-];
+/** Nama simpul yang digambar di dunia 3D, searah dengan diagram di panel.ai.id. */
+export const pengendali = ["ctl-1", "ctl-2", "ctl-3"] as const;

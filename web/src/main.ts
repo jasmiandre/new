@@ -2,8 +2,8 @@
 
 import Lenis from "lenis";
 import "./styles.css";
-import { bangunBab, bangunNav, Hud, Penunjuk, terapkanTemaAntarmuka } from "./ui";
-import { Dunia, nilaiTema, webglTersedia } from "./world/scene";
+import { bangunBab, bangunNav, Hud, Penunjuk } from "./ui";
+import { Dunia, webglTersedia } from "./world/scene";
 
 const kurangiGerak = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -14,28 +14,12 @@ function wajib<T extends HTMLElement>(id: string): T {
 }
 
 const kanvas = wajib<HTMLCanvasElement>("dunia");
-const wadahBab = wajib("isi");
 
 bangunNav(wajib("nav"));
-const bagian = bangunBab(wadahBab);
+const bagian = bangunBab(wajib("isi"));
 const hud = new Hud(wajib("hud"));
 const penunjuk = new Penunjuk(wajib("penunjuk"));
 
-// Dunia 3D hanya dibangun kalau peramban benar-benar sanggup. Tanpa WebGL,
-// situs tetap utuh: isi dan tata letaknya sudah lengkap tanpa kanvas.
-let dunia: Dunia | null = null;
-if (webglTersedia()) {
-  try {
-    dunia = new Dunia(kanvas);
-  } catch (galat) {
-    console.warn("dunia 3D tidak dapat dijalankan:", galat);
-    dunia = null;
-  }
-}
-if (!dunia) kanvas.style.display = "none";
-
-// Gulir halus. Dengan prefers-reduced-motion, penghalusan dimatikan sehingga
-// gulir kembali mengikuti perilaku bawaan peramban.
 const lenis = new Lenis({
   autoRaf: false,
   duration: 1.05,
@@ -66,28 +50,47 @@ function perbaruiIsiBab() {
     if (!isi) continue;
     isi.style.opacity = String(tampak);
     isi.style.transform = `translateY(${(1 - tampak) * 18}px)`;
-    // Bab yang sudah tak terlihat tidak boleh lagi menangkap tetikus.
     isi.style.visibility = tampak < 0.02 ? "hidden" : "visible";
   }
 }
 
-let mulai = performance.now();
-function kerangka(waktu: number) {
-  lenis.raf(waktu);
+async function mulai() {
+  // Label simpul digambar ke canvas memakai Geist Mono. Menunggu font selesai
+  // dimuat lebih dulu mencegah label tergambar dengan monospace bawaan sistem,
+  // yang tidak bisa diperbaiki lagi setelah teksturnya jadi.
+  try {
+    await document.fonts.ready;
+  } catch {
+    // Peramban tanpa Font Loading API tetap jalan, hanya fontnya bawaan.
+  }
 
-  // Gerak menganggur dibekukan ketika pengguna minta gerak dikurangi.
-  const detik = kurangiGerak ? 0 : (waktu - mulai) / 1000;
+  let dunia: Dunia | null = null;
+  if (webglTersedia()) {
+    try {
+      dunia = new Dunia(kanvas);
+    } catch (galat) {
+      console.warn("dunia 3D tidak dapat dijalankan:", galat);
+    }
+  }
+  if (!dunia) kanvas.style.display = "none";
 
-  dunia?.gambar(kemajuan, detik);
-  terapkanTemaAntarmuka(nilaiTema(kemajuan));
-  hud.perbarui(kemajuan);
-  penunjuk.perbarui();
-  perbaruiIsiBab();
+  window.addEventListener("resize", () => dunia?.ubahUkuran());
 
+  const awal = performance.now();
+  const kerangka = (waktu: number) => {
+    lenis.raf(waktu);
+    // Gerak menganggur dibekukan ketika pengguna minta gerak dikurangi.
+    const detik = kurangiGerak ? 0 : (waktu - awal) / 1000;
+
+    dunia?.gambar(kemajuan, detik);
+    hud.perbarui(kemajuan);
+    penunjuk.perbarui();
+    perbaruiIsiBab();
+
+    requestAnimationFrame(kerangka);
+  };
   requestAnimationFrame(kerangka);
 }
-
-window.addEventListener("resize", () => dunia?.ubahUkuran());
 
 // Tautan dalam halaman diserahkan ke Lenis agar ikut mulus.
 document.addEventListener("click", (e) => {
@@ -99,5 +102,4 @@ document.addEventListener("click", (e) => {
   lenis.scrollTo(tujuan as HTMLElement);
 });
 
-mulai = performance.now();
-requestAnimationFrame(kerangka);
+void mulai();

@@ -71,6 +71,17 @@ D. JEBAKAN YANG WAJIB DIHINDARI
    keluaran DAN kembalikan berkas itu setelah tiap build, karena Vite
    mengosongkan direktori tersebut. Tanpa itu go:embed gagal dikompilasi di
    klona baru.
+9. Kalau sebuah objek diregangkan di satu sumbu (misalnya garis penghubung),
+   jangan memutar geometrinya dua kali. Rotasi kedua memindahkan sumbu
+   panjangnya, sehingga scale yang kamu kira memanjangkan justru melebarkan,
+   dan varying sepanjang sumbu itu menjadi nyaris konstan. Pakai geometri yang
+   sumbu panjangnya sudah benar sejak awal.
+10. Label teks yang digambar ke canvas harus dibuat SETELAH document.fonts.ready.
+   Kalau tidak, teksturnya terkunci memakai font bawaan sistem dan tidak bisa
+   diperbaiki lagi setelah jadi.
+11. Warna untuk objek 3D dan warna untuk teks label tidak boleh disamakan.
+   Objek yang "mati" memang harus nyaris hitam, tetapi labelnya tetap harus
+   terbaca.
 
 E. CARA KERJA YANG AKU MINTA
 Jangan bilang selesai sebelum kamu menjalankan situsnya sendiri dan menangkap
@@ -93,8 +104,9 @@ bagian ACUAN ARSITEKTUR — sisa prompt sudah berdiri sendiri. Atau sebutkan
 berkas yang perlu ditiru polanya:
 
 ```
-web/src/world/scene.ts   lintasan kamera dan peralihan tema
+web/src/world/scene.ts   lintasan kamera dan suasana per bab
 web/src/world/grid.ts    shader bidang grid tak hingga
-web/src/world/tiles.ts   objek melayang, termasuk kabut manual
+web/src/world/cluster.ts objek di atas grid, termasuk kabut manual
+web/src/world/labels.ts  label teks digambar ke canvas saat runtime
 web/src/content.ts       seluruh naskah dan data bab
 ```

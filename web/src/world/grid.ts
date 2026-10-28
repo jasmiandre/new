@@ -73,18 +73,18 @@ const fragmentShader = /* glsl */ `
     float pudar = 1.0 - smoothstep(uJangkauan * 0.10, uJangkauan, jarak);
     if (pudar <= 0.001) discard;
 
-    float g = garis(p, uSel, 1.0) * 0.5;
-    float t = tanda(p, uSel * 3.0, uSel * 0.26, 1.2);
+    float g = garis(p, uSel, 1.0) * 0.6;
+    float t = tanda(p, uSel * 3.0, uSel * 0.18, 0.8) * 0.5;
 
     // Cahaya biru lembut yang menyapu permukaan, seperti lampu besar di kejauhan.
     float jarakPijar = length(vDunia - uPijar);
-    float pijar = exp(-jarakPijar / 62.0) * uKuatPijar;
+    float pijar = exp(-jarakPijar / 38.0) * uKuatPijar;
 
     vec3 warna = uWarnaGaris * g + uWarnaTanda * t;
     float alfa = max(g, t);
 
     warna += uWarnaPijar * pijar;
-    alfa = clamp(alfa + pijar * 0.85, 0.0, 1.0);
+    alfa = clamp(alfa + pijar * 0.5, 0.0, 1.0);
 
     gl_FragColor = vec4(warna, alfa * pudar * uOpasitas);
   }
@@ -102,9 +102,9 @@ export class Grid {
       depthWrite: false,
       side: DoubleSide,
       uniforms: {
-        uWarnaGaris: { value: new Color("#8fa6c8") },
-        uWarnaTanda: { value: new Color("#c9d6ea") },
-        uWarnaPijar: { value: new Color("#2f6bff") },
+        uWarnaGaris: { value: new Color("#5d6f91") },
+        uWarnaTanda: { value: new Color("#8fa2c0") },
+        uWarnaPijar: { value: new Color("#3bd671") },
         uKamera: { value: new Vector3() },
         uPijar: { value: new Vector3(70, 10, -120) },
         uSel: { value: SEL },
@@ -128,31 +128,20 @@ export class Grid {
     (this.material.uniforms.uKamera!.value as Vector3).copy(posisi);
   }
 
-  /** Memindahkan sumber cahaya biru yang menyapu grid. */
-  aturPijar(posisi: Vector3, kekuatan: number) {
+  /** Memindahkan sumber cahaya yang menyapu grid. */
+  aturPijar(posisi: Vector3) {
     (this.material.uniforms.uPijar!.value as Vector3).copy(posisi);
-    this.material.uniforms.uKuatPijar!.value = kekuatan;
   }
 
   /**
-   * Menerapkan tema. Nilai campur 0 berarti gelap sepenuhnya, 1 terang
-   * sepenuhnya; nilai di antaranya dipakai saat peralihan sedang berjalan.
+   * Mengatur suasana grid. Alih-alih membalik tema gelap/terang, warna pijar
+   * yang mengikuti cerita: hijau saat cluster sehat, jingga saat pemimpinnya
+   * hilang. Merek panel.ai.id gelap sepenuhnya, jadi membalikkannya ke putih
+   * akan terasa keluar dari identitasnya.
    */
-  aturTema(campur: number) {
-    const garisGelap = new Color("#8fa6c8");
-    const garisTerang = new Color("#1a2740");
-    const tandaGelap = new Color("#c9d6ea");
-    const tandaTerang = new Color("#0e1726");
-
-    (this.material.uniforms.uWarnaGaris!.value as Color)
-      .copy(garisGelap).lerp(garisTerang, campur);
-    (this.material.uniforms.uWarnaTanda!.value as Color)
-      .copy(tandaGelap).lerp(tandaTerang, campur);
-
-    // Pencampuran sengaja dibiarkan normal di kedua tema. Di atas latar hitam
-    // hasilnya praktis sama dengan aditif, sementara beralih mode di tengah
-    // peralihan justru menimbulkan kedipan yang terlihat.
-    this.material.uniforms.uOpasitas!.value = 1 - campur * 0.15;
+  aturSuasana(warnaPijar: Color, kuatPijar: number) {
+    (this.material.uniforms.uWarnaPijar!.value as Color).copy(warnaPijar);
+    this.material.uniforms.uKuatPijar!.value = kuatPijar;
   }
 
   dispose() {

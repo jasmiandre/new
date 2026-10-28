@@ -3,7 +3,7 @@
 // Seluruh isi dibangun dari src/content.ts, jadi berkas ini tidak memuat
 // naskah apa pun.
 
-import { chapters, situs, type Chapter } from "./content";
+import { chapters, LABEL_STATUS, situs, type Chapter } from "./content";
 
 const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -66,6 +66,14 @@ function bangunSatuBab(bab: Chapter, indeks: number): HTMLElement {
   kolom.append(h);
 
   if (bab.teks) kolom.append(el("p", "sokong", bab.teks));
+
+  // Label status mengikuti konvensi panel.ai.id: tiap klaim menyebut apakah ia
+  // sudah diuji atau masih dikerjakan.
+  if (bab.status) {
+    const tanda = el("p", `status-bab status-${bab.status}`);
+    tanda.append(el("span", "status-titik"), el("span", undefined, LABEL_STATUS[bab.status]));
+    kolom.append(tanda);
+  }
 
   if (bab.metrik) {
     const daftar = el("dl", "metrik");

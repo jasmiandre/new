@@ -262,6 +262,24 @@ html.lenis, html.lenis body { height: auto; }
   color: var(--teks-lemah);
 }
 
+.status-bab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.4rem 0 0;
+  padding: 0.3rem 0.75rem 0.3rem 0.6rem;
+  border: 1px solid var(--garis);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  color: var(--teks-redup);
+  background: rgb(var(--latar-rgb) / 0.5);
+}
+
+.status-diuji .status-titik { background: var(--hijau); box-shadow: 0 0 0 3px rgb(59 214 113 / 0.15); }
+.status-segera .status-titik { background: var(--jingga); box-shadow: 0 0 0 3px rgb(242 86 29 / 0.15); }
+
 .aksi { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 2rem; }
 
 /* --- metrik --- */

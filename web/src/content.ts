@@ -1,19 +1,17 @@
 // Seluruh naskah situs berkumpul di berkas ini.
 //
-// Mesin 3D tidak tahu apa-apa soal isi: ia hanya membaca daftar bab di bawah,
-// dan satu medan `fase` yang memberi tahu keadaan apa yang harus digambarkan
-// oleh diagram cluster.
+// Berbeda dari versi sebelumnya, dunia 3D kini menggambarkan SATU sistem yang
+// sama sepanjang halaman. Bab tidak lagi membawa keadaannya sendiri-sendiri;
+// keadaan cluster dihitung sebagai fungsi menerus dari posisi gulir di
+// world/keadaan.ts. Bab di sini hanya menentukan naskah dan sikap kamera.
 
-/** Keadaan cluster yang digambarkan dunia 3D pada sebuah bab. */
-export type Fase =
-  | "normal"
-  | "gangguan"
-  | "izin-habis"
-  | "pemimpin-baru"
-  | "kembali";
-
-/** Tata letak naskah: rata tengah untuk pembuka dan penutup, kiri untuk narasi. */
 export type Tata = "tengah" | "kiri";
+
+/**
+ * Label status, mengikuti konvensi panel.ai.id: tiap klaim menyebut apakah ia
+ * sudah diuji atau masih dikerjakan.
+ */
+export type Status = "diuji" | "segera";
 
 export interface Metrik {
   nilai: string;
@@ -24,11 +22,10 @@ export interface Chapter {
   nomor: string;
   nama: string;
   tata: Tata;
-  fase: Fase;
+  status?: Status;
   kicker?: string;
   judul: string[];
   teks?: string;
-  /** Baris kecil bermonospace di bawah paragraf, untuk catatan status. */
   catatan?: string;
   metrik?: Metrik[];
   aksi?: { label: string; href: string; utama?: boolean }[];
@@ -41,9 +38,14 @@ export const situs = {
     { label: "Failover", href: "#bab-3" },
     { label: "Akses awal", href: "#bab-6" },
   ],
-  status: "7/7 sehat",
+  status: "3/3 region",
   bahasa: ["ID", "EN"],
   cta: { label: "Akses awal", href: "https://panel.ai.id/" },
+};
+
+export const LABEL_STATUS: Record<Status, string> = {
+  diuji: "SUDAH DIUJI DI CLUSTER KAMI",
+  segera: "SEDANG DIKERJAKAN",
 };
 
 export const chapters: Chapter[] = [
@@ -51,17 +53,17 @@ export const chapters: Chapter[] = [
     nomor: "00",
     nama: "Panel",
     tata: "tengah",
-    fase: "normal",
     kicker: "AKSES AWAL · Terbuka untuk penyedia hosting",
-    judul: ["Satu panel untuk semua", "server hosting Anda."],
+    judul: ["Satu panel.", "Tiga region."],
     teks:
       "Panel kontrol untuk penyedia hosting yang menjalankan lebih dari satu " +
-      "server. Website, DNS, backup, dan database pelanggan dikelola dari satu " +
-      "tempat. Pengendali dan database panel berjalan di tiga server: kalau satu " +
-      "mati, yang lain mengambil alih dalam belasan detik.",
+      "server. Pengendali dan database panel berjalan di tiga region — kalau " +
+      "satu region berhenti menjawab, dua sisanya mengambil alih tanpa diatur " +
+      "manual.",
     catatan:
-      "Masih dalam pengembangan dan belum untuk produksi. Konsol web dan " +
-      "website pelanggan belum ikut pindah otomatis.",
+      "Masih dalam pengembangan dan belum untuk produksi. Failover pengendali " +
+      "sudah diuji di cluster kami; perpindahan konsol web dan website " +
+      "pelanggan sedang dikerjakan.",
     aksi: [
       { label: "Ajukan akses awal", href: "https://panel.ai.id/", utama: true },
       { label: "Lihat cara kerjanya", href: "#bab-1" },
@@ -69,84 +71,89 @@ export const chapters: Chapter[] = [
   },
   {
     nomor: "01",
-    nama: "Normal",
+    nama: "Region",
     tata: "kiri",
-    fase: "normal",
-    kicker: "T+0 · NORMAL",
-    judul: ["Satu pengendali", "memimpin."],
+    status: "diuji",
+    kicker: "01 · SATU REGION",
+    judul: ["Tiap region", "berdiri sendiri."],
     teks:
-      "Panel dikendalikan oleh tiga pengendali. ctl-2 menjadi pemimpin: ia " +
-      "memegang izin bernomor 41 di etcd dan terus memperbaruinya. Server " +
-      "hosting hanya menjalankan perintah dari pemimpin ini.",
+      "Satu region membawa pengendali panel, salinan databasenya, dan server " +
+      "hosting yang melayani website pelanggan. Tidak ada satu pun bagian yang " +
+      "hanya hidup di satu tempat.",
   },
   {
     nomor: "02",
-    nama: "Gangguan",
+    nama: "Replikasi",
     tata: "kiri",
-    fase: "gangguan",
-    kicker: "T+1 · GANGGUAN",
-    judul: ["Pemimpin berhenti", "menjawab."],
+    status: "diuji",
+    kicker: "02 · REPLIKASI",
+    judul: ["Ketiganya", "saling menyalin."],
     teks:
-      "Prosesnya macet, servernya hang, atau jaringannya putus. Kalau hanya " +
-      "pengendalinya yang bermasalah, website pelanggan tetap berjalan dan yang " +
-      "tertunda hanya perubahan baru dari panel.",
+      "Satu region memegang izin kepemimpinan bernomor 41 dan terus " +
+      "memperbaruinya. Perubahan apa pun dari panel mengalir ke dua region " +
+      "lain sebelum dianggap selesai.",
   },
   {
     nomor: "03",
-    nama: "Izin habis",
+    nama: "Padam",
     tata: "kiri",
-    fase: "izin-habis",
-    kicker: "T+2 · IZIN HABIS",
-    judul: ["Izin punya", "batas waktu."],
+    status: "diuji",
+    kicker: "03 · PADAM",
+    judul: ["Satu region", "berhenti menjawab."],
     teks:
-      "Begitu batas waktunya lewat, izin nomor 41 tidak bisa diperpanjang lagi " +
-      "— juga oleh pemiliknya sendiri. Dua pengendali yang tersisa memilih " +
-      "pemimpin baru.",
+      "Prosesnya macet, servernya hang, atau jaringannya putus. Izin nomor 41 " +
+      "tidak bisa diperpanjang lagi begitu batas waktunya lewat — juga oleh " +
+      "pemiliknya sendiri.",
   },
   {
     nomor: "04",
-    nama: "Pemimpin baru",
+    nama: "Berbelok",
     tata: "kiri",
-    fase: "pemimpin-baru",
-    kicker: "T+3 · PEMIMPIN BARU",
-    judul: ["Pemimpin baru", "dengan nomor baru."],
+    status: "diuji",
+    kicker: "04 · AMBIL ALIH",
+    judul: ["Dua sisanya", "mengambil alih."],
     teks:
       "Pemenangnya mendapat izin nomor 42, lebih tinggi dari semua nomor " +
-      "sebelumnya. Server hosting langsung mengikuti pemimpin baru tanpa diatur " +
-      "manual.",
+      "sebelumnya. Server hosting langsung mengikuti pemimpin baru tanpa " +
+      "diatur manual.",
     metrik: [
       { nilai: "1,5–2,2 dtk", label: "dihentikan normal" },
       { nilai: "13,8 dtk", label: "dibekukan" },
       { nilai: "17,5 dtk", label: "crash" },
     ],
-    catatan: "Hasil uji di cluster pengembangan kami.",
+    catatan:
+      "Angka failover pengendali dari uji di cluster pengembangan kami. " +
+      "Perpindahan website pelanggan antar region sedang dikerjakan.",
   },
   {
     nomor: "05",
-    nama: "Kembali",
+    nama: "Pulih",
     tata: "kiri",
-    fase: "kembali",
-    kicker: "T+4 · KEMBALI",
-    judul: ["Pengendali lama hidup lagi,", "perintahnya ditolak."],
+    status: "diuji",
+    kicker: "05 · KEMBALI",
+    judul: ["Region lama kembali,", "nomor lamanya ditolak."],
     teks:
-      "Saat ctl-2 hidup lagi, perintahnya masih membawa nomor 41 dan langsung " +
-      "ditolak. Siapa pemimpinnya ditentukan oleh nomor izin; jam server tidak " +
-      "dipakai untuk itu.",
+      "Saat region itu hidup lagi, perintahnya masih membawa nomor 41 dan " +
+      "langsung ditolak. Siapa pemimpinnya ditentukan oleh nomor izin; jam " +
+      "server tidak dipakai untuk itu.",
   },
   {
     nomor: "06",
     nama: "Akses awal",
     tata: "tengah",
-    fase: "normal",
     kicker: "AKSES AWAL",
     judul: ["Coba lebih awal,", "bantu menentukan urutannya."],
     teks:
       "Terbuka untuk penyedia hosting yang menjalankan lebih dari satu server. " +
-      "Setiap fitur diberi label statusnya: sudah diuji di cluster pengembangan " +
-      "kami, atau segera hadir.",
+      "Setiap fitur diberi label statusnya: sudah diuji di cluster kami, atau " +
+      "sedang dikerjakan.",
     aksi: [{ label: "Ajukan akses awal", href: "https://panel.ai.id/", utama: true }],
   },
 ];
 
-/** Nama simpul yang digambar di dunia 3D, searah dengan diagram di panel.ai.id. */
-export const pengendali = ["ctl-1", "ctl-2", "ctl-3"] as const;
+/** Nama region yang digambar di dunia 3D. */
+export const REGION = ["region-1", "region-2", "region-3"] as const;
+
+/** Region yang memimpin di awal cerita, dan yang mengambil alih setelah padam. */
+export const PEMIMPIN_AWAL = 1;
+export const PEMIMPIN_BARU = 2;

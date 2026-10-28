@@ -1,119 +1,68 @@
-// Dunia 3D: renderer, lintasan kamera, dan suasana per bab.
+// Dunia 3D: renderer, lintasan kamera melengkung, dan suasana.
 //
-// Satu diagram cluster berdiri di depan tiap bab, masing-masing membeku pada
-// satu momen cerita failover. Kamera melaju lurus melewatinya, jadi urutan
-// waktu dibentangkan menjadi urutan ruang.
+// Kamera tidak lagi meluncur lurus melewati salinan-salinan beku. Ia bergerak
+// di sepanjang kurva yang mengorbit satu sistem, mendekat ke region yang sedang
+// diceritakan lalu menarik diri lagi untuk memperlihatkan keseluruhan. Posisi
+// dan arah pandangnya tetap fungsi murni dari kemajuan gulir, jadi menggulir
+// naik memutar balik pergerakan itu persis.
 
-import { Color, Fog, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
-import { chapters, type Fase } from "../content";
-import { Cluster } from "./cluster";
+import {
+  CatmullRomCurve3,
+  Color,
+  Fog,
+  PerspectiveCamera,
+  Scene,
+  Vector3,
+  WebGLRenderer,
+} from "three";
+import { chapters } from "../content";
 import { Grid } from "./grid";
-
-/** Panjang lintasan kamera dalam satuan dunia, dari awal sampai akhir gulir. */
-const PANJANG_LINTASAN = 760;
-
-/**
- * Jarak diagram di depan kamera saat babnya berada tepat di tengah layar.
- * Bab bernaskah rata tengah menaruh diagramnya jauh lebih ke depan: judul
- * besar menempati tengah layar, jadi diagram yang dekat akan tertimpa teks.
- * Dari jarak itu ia terbaca sebagai gugusan cahaya di kejauhan.
- */
-const JARAK_DIAGRAM = { tengah: 108, kiri: 30 };
+import { keadaanPada } from "./keadaan";
+import { Sistem } from "./regions";
 
 const WARNA_LATAR = new Color("#0b0f19");
+const HIJAU = new Color("#3bd671");
+const JINGGA = new Color("#f2561d");
 
-/** Warna pijar yang menyapu grid, mengikuti keadaan cluster di bab itu. */
-const PIJAR: Record<Fase, string> = {
-  "normal": "#3bd671",
-  "gangguan": "#f5b83d",
-  "izin-habis": "#f2561d",
-  "pemimpin-baru": "#3bd671",
-  "kembali": "#3bd671",
-};
-
-interface Sikap {
-  tinggi: number;
-  geser: number;
-  guling: number;
-  tunduk: number;
-}
+/**
+ * Satu titik acuan kamera per bab: tempat ia berdiri, titik yang dipandang,
+ * dan kemiringan cakrawala.
+ *
+ * Bab bernaskah kiri sengaja memandang ke titik di sebelah kiri subjeknya,
+ * supaya sistem jatuh di paruh kanan layar dan tidak bertabrakan dengan teks.
+ */
+const ACUAN: { posisi: Vector3; lihat: Vector3; guling: number; geser: number; detail: number }[] = [
+  // 00 Panel — pandangan luas, sistem jauh dan rendah di layar
+  { posisi: new Vector3(0, 30, 100), lihat: new Vector3(0, 21, 0), guling: -0.02, geser: 0, detail: 0 },
+  // 01 Region — mendekat ke region-2
+  { posisi: new Vector3(-58, 13, 46), lihat: new Vector3(-36, 6, 17), guling: 0.05, geser: 0.21, detail: 1 },
+  // 02 Replikasi — naik, memperlihatkan ketiga tautan
+  { posisi: new Vector3(-34, 38, 78), lihat: new Vector3(-17, 8, 19), guling: -0.04, geser: 0.15, detail: 1 },
+  // 03 Padam — dekat ke region-2 saat ia meredup
+  { posisi: new Vector3(-64, 15, 33), lihat: new Vector3(-38, 6, 16), guling: 0.07, geser: 0.21, detail: 1 },
+  // 04 Berbelok — menarik diri, trafik berpindah ke region-3
+  { posisi: new Vector3(-22, 34, 86), lihat: new Vector3(-12, 7, 17), guling: -0.05, geser: 0.15, detail: 1 },
+  // 05 Pulih — kembali ke region-2
+  { posisi: new Vector3(-56, 13, 48), lihat: new Vector3(-34, 6, 19), guling: 0.04, geser: 0.21, detail: 1 },
+  // 06 Akses awal — luas lagi
+  { posisi: new Vector3(0, 28, 106), lihat: new Vector3(0, 20, 0), guling: -0.02, geser: 0, detail: 0 },
+];
 
 const jepit = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
-const campur = (a: number, b: number, t: number) => a + (b - a) * t;
 const halus = (t: number) => t * t * (3 - 2 * t);
-
-/**
- * Sikap kamera untuk sebuah bab.
- *
- * Bab bernaskah rata tengah memakai pandangan lebih tinggi dan lebih menunduk,
- * supaya diagram turun ke sepertiga bawah layar dan judul besar punya ruang
- * kosong di tengah. Bab bernarasi menggeser kamera ke kiri agar diagramnya
- * jatuh di sisi kanan, berseberangan dengan kolom teks.
- */
-function sikapBab(indeks: number): Sikap {
-  const bab = chapters[indeks]!;
-  if (bab.tata === "tengah") {
-    return { tinggi: 10.5, geser: 0, guling: -0.03, tunduk: 0.40 };
-  }
-  // Arah geser berselang-seling supaya kamera terasa mengayun, bukan meluncur
-  // di rel lurus, sementara diagram tetap di sisi kanan.
-  const ayun = indeks % 2 === 0 ? 1 : -1;
-  return {
-    tinggi: 7.5 + ayun * 1.2,
-    geser: -4.5 + ayun * 1.5,
-    guling: ayun * 0.055,
-    tunduk: 0.24,
-  };
-}
-
-/**
- * Posisi mendatar diagram untuk sebuah bab. Bab rata tengah mendorong
- * diagramnya jauh ke samping: naskahnya menempati tengah layar, jadi gugusan
- * yang sejajar sumbu pandang akan terbaca sebagai noda di balik judul.
- */
-function geserDiagram(indeks: number): number {
-  return chapters[indeks]!.tata === "tengah" ? 34 : 7;
-}
-
-/** Titik tengah gulir untuk sebuah bab, dalam 0..1. */
-function tengahBab(indeks: number): number {
-  return (indeks + 0.5) / chapters.length;
-}
-
-/** Mencampur sikap kamera di antara titik tengah dua bab yang berdekatan. */
-function sikapPada(kemajuan: number): Sikap {
-  const n = chapters.length;
-  const skala = jepit(kemajuan, 0, 1) * n - 0.5;
-  const i = jepit(Math.floor(skala), 0, n - 2);
-  const t = halus(jepit(skala - i, 0, 1));
-  const a = sikapBab(i);
-  const b = sikapBab(i + 1);
-  return {
-    tinggi: campur(a.tinggi, b.tinggi, t),
-    geser: campur(a.geser, b.geser, t),
-    guling: campur(a.guling, b.guling, t),
-    tunduk: campur(a.tunduk, b.tunduk, t),
-  };
-}
-
-/** Warna pijar pada satu titik gulir, dicampur antar bab agar tidak berkedip. */
-function pijarPada(kemajuan: number): Color {
-  const n = chapters.length;
-  const skala = jepit(kemajuan, 0, 1) * n - 0.5;
-  const i = jepit(Math.floor(skala), 0, n - 2);
-  const t = halus(jepit(skala - i, 0, 1));
-  return new Color(PIJAR[chapters[i]!.fase])
-    .lerp(new Color(PIJAR[chapters[i + 1]!.fase]), t);
-}
 
 export class Dunia {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera: PerspectiveCamera;
   private readonly grid = new Grid();
-  private readonly cluster: Cluster[] = [];
+  private readonly sistem = new Sistem();
   private readonly fog: Fog;
+  private readonly jalurPosisi: CatmullRomCurve3;
+  private readonly jalurLihat: CatmullRomCurve3;
   private readonly sasaran = new Vector3();
+  private readonly _maju = new Vector3();
+  private readonly _kanan = new Vector3();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({
@@ -123,24 +72,18 @@ export class Dunia {
     });
     this.renderer.setClearColor(WARNA_LATAR, 1);
 
-    this.camera = new PerspectiveCamera(46, 1, 0.1, 500);
-    this.fog = new Fog(WARNA_LATAR.getHex(), 34, 190);
+    this.camera = new PerspectiveCamera(46, 1, 0.1, 700);
+    this.fog = new Fog(WARNA_LATAR.getHex(), 40, 260);
     this.scene.fog = this.fog;
-    this.scene.add(this.grid.mesh);
 
-    chapters.forEach((bab, i) => {
-      const z = -tengahBab(i) * PANJANG_LINTASAN - JARAK_DIAGRAM[bab.tata];
-      const c = new Cluster(
-        new Vector3(geserDiagram(i), 0, z),
-        bab.fase,
-        // Diagram diputar sedikit supaya ketiga menaranya tidak pernah saling
-        // menutupi tepat dari arah kamera.
-        bab.tata === "tengah" ? 0.25 : -0.5,
-      );
-      c.aturKabut(WARNA_LATAR, this.fog.near, this.fog.far);
-      this.cluster.push(c);
-      this.scene.add(c.group);
-    });
+    this.scene.add(this.grid.mesh);
+    this.sistem.aturKabut(WARNA_LATAR, this.fog.near, this.fog.far);
+    this.scene.add(this.sistem.group);
+
+    // Kurva Catmull-Rom membuat perpindahan antar acuan melengkung mulus,
+    // bukan patah di tiap titik seperti interpolasi lurus.
+    this.jalurPosisi = new CatmullRomCurve3(ACUAN.map((a) => a.posisi), false, "catmullrom", 0.4);
+    this.jalurLihat = new CatmullRomCurve3(ACUAN.map((a) => a.lihat), false, "catmullrom", 0.4);
 
     this.ubahUkuran();
   }
@@ -154,28 +97,64 @@ export class Dunia {
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Memetakan kemajuan gulir ke parameter kurva.
+   *
+   * Titik tengah bab ke-i harus jatuh tepat di acuan ke-i, jadi setengah bab
+   * di kedua ujung halaman dipakai untuk menahan kamera di acuan pertama dan
+   * terakhir — tanpa itu hero sudah bergerak sebelum pengguna menggulir.
+   */
+  private parameter(kemajuan: number): number {
+    const n = chapters.length;
+    return jepit((kemajuan * n - 0.5) / (n - 1), 0, 1);
+  }
+
+  /** Mencampur satu nilai acuan di antara dua bab yang berdekatan. */
+  private acuanPada(kemajuan: number, ambil: (a: (typeof ACUAN)[number]) => number): number {
+    const n = chapters.length;
+    const skala = jepit(kemajuan * n - 0.5, 0, n - 1);
+    const i = Math.min(Math.floor(skala), n - 2);
+    const t = halus(skala - i);
+    return ambil(ACUAN[i]!) + (ambil(ACUAN[i + 1]!) - ambil(ACUAN[i]!)) * t;
+  }
+
   gambar(kemajuan: number, waktu: number) {
     const k = jepit(kemajuan, 0, 1);
-    const sikap = sikapPada(k);
-    const z = -k * PANJANG_LINTASAN;
+    const u = this.parameter(k);
 
-    this.camera.position.set(sikap.geser, sikap.tinggi, z);
-    this.sasaran.set(sikap.geser * 0.3, sikap.tinggi - sikap.tunduk * 26, z - 34);
+    this.jalurPosisi.getPoint(u, this.camera.position);
+    this.jalurLihat.getPoint(u, this.sasaran);
+
+    // Titik pandang digeser ke kiri sepanjang sumbu kanan kamera, sehingga
+    // sistem terdorong ke paruh kanan layar dan kolom naskah tetap lapang.
+    const geser = this.acuanPada(k, (a) => a.geser);
+    if (geser !== 0) {
+      this._maju.copy(this.sasaran).sub(this.camera.position);
+      const jarak = this._maju.length();
+      this._maju.divideScalar(jarak);
+      this._kanan.copy(this._maju).cross(this.camera.up).normalize();
+      this.sasaran.addScaledVector(this._kanan, -geser * jarak);
+    }
+
     this.camera.lookAt(this.sasaran);
-    this.camera.rotation.z += sikap.guling;
+    this.camera.rotation.z += this.acuanPada(k, (a) => a.guling);
+
+    const keadaan = keadaanPada(k);
 
     this.grid.ikutiKamera(this.camera.position);
-    this.grid.aturPijar(new Vector3(sikap.geser + 22, 5, z - 58));
-    this.grid.aturSuasana(pijarPada(k), 0.22);
+    // Pijar diletakkan di tengah sistem, jadi grid ikut menyala mengikuti
+    // kesehatan izin: hijau selama ada pemimpin, jingga saat izinnya habis.
+    this.grid.aturPijar(new Vector3(0, 4, 0));
+    this.grid.aturSuasana(HIJAU.clone().lerp(JINGGA, 1 - keadaan.izin), 0.3);
 
-    for (const c of this.cluster) c.perbarui(waktu, this.camera);
+    this.sistem.perbarui(keadaan, waktu, this.camera, this.acuanPada(k, (a) => a.detail));
 
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {
     this.grid.dispose();
-    for (const c of this.cluster) c.dispose();
+    this.sistem.dispose();
     this.renderer.dispose();
   }
 }

@@ -18,6 +18,7 @@ import {
 import { chapters } from "../content";
 import { Grid } from "./grid";
 import { keadaanPada } from "./keadaan";
+import { buatPasca, type Pasca } from "./pasca";
 import { Sistem } from "./regions";
 
 const WARNA_LATAR = new Color("#0b0f19");
@@ -49,7 +50,31 @@ const ACUAN: { posisi: Vector3; lihat: Vector3; guling: number; geser: number; d
 ];
 
 const jepit = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
-const halus = (t: number) => t * t * (3 - 2 * t);
+
+/**
+ * Smootherstep kuintik. Turunannya nol di KEDUA ujung, jadi gerak berangkat
+ * dan berhenti tanpa sentakan — smoothstep biasa masih menyisakan percepatan
+ * mendadak yang terbaca sebagai gerak kasar.
+ */
+const halus = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+
+/** Porsi tiap bab yang dipakai untuk menahan bidikan, dibagi dua ujungnya. */
+const TAHAN = 0.52;
+
+/**
+ * Mengubah kemajuan di dalam satu bab menjadi kemajuan kamera.
+ *
+ * Inilah yang membedakan rangkaian shot dari melayang terus-menerus: kamera
+ * diam pada komposisinya selama sebagian besar bab, lalu berpindah ke
+ * komposisi berikutnya di bagian tengah peralihan. Film tersusun dari bidikan
+ * yang ditahan, bukan dari kamera yang tidak pernah berhenti bergerak.
+ */
+function tahanBidikan(t: number): number {
+  const tepi = TAHAN / 2;
+  if (t <= tepi) return 0;
+  if (t >= 1 - tepi) return 1;
+  return halus((t - tepi) / (1 - TAHAN));
+}
 
 export class Dunia {
   private readonly renderer: WebGLRenderer;
@@ -60,6 +85,7 @@ export class Dunia {
   private readonly fog: Fog;
   private readonly jalurPosisi: CatmullRomCurve3;
   private readonly jalurLihat: CatmullRomCurve3;
+  private readonly pasca: Pasca;
   private readonly sasaran = new Vector3();
   private readonly _maju = new Vector3();
   private readonly _kanan = new Vector3();
@@ -85,49 +111,60 @@ export class Dunia {
     this.jalurPosisi = new CatmullRomCurve3(ACUAN.map((a) => a.posisi), false, "catmullrom", 0.4);
     this.jalurLihat = new CatmullRomCurve3(ACUAN.map((a) => a.lihat), false, "catmullrom", 0.4);
 
+    this.pasca = buatPasca(this.renderer, this.scene, this.camera);
+
     this.ubahUkuran();
   }
 
   ubahUkuran() {
     const l = window.innerWidth;
     const t = window.innerHeight;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Bloom mengerjakan beberapa lintasan blur pada tiap kerangka, dan biayanya
+    // tumbuh seiring jumlah piksel. Di layar sempit — yang hampir selalu
+    // berarti ponsel — rasio piksel ditahan lebih rendah: pada kerapatan
+    // setinggi itu selisihnya tidak terlihat, sedangkan beban rendernya hampir
+    // separuh.
+    const batasRasio = l < 760 ? 1.5 : 2;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, batasRasio));
     this.renderer.setSize(l, t, false);
     this.camera.aspect = l / t;
     this.camera.updateProjectionMatrix();
+    this.pasca.ubahUkuran(l, t);
   }
 
   /**
-   * Memetakan kemajuan gulir ke parameter kurva.
+   * Menentukan di antara acuan mana kamera berada, dan seberapa jauh
+   * perpindahannya sudah berjalan setelah dilunakkan.
    *
-   * Titik tengah bab ke-i harus jatuh tepat di acuan ke-i, jadi setengah bab
-   * di kedua ujung halaman dipakai untuk menahan kamera di acuan pertama dan
+   * Titik tengah bab ke-i jatuh tepat di acuan ke-i, jadi setengah bab di
+   * kedua ujung halaman dipakai untuk menahan kamera di acuan pertama dan
    * terakhir — tanpa itu hero sudah bergerak sebelum pengguna menggulir.
    */
-  private parameter(kemajuan: number): number {
-    const n = chapters.length;
-    return jepit((kemajuan * n - 0.5) / (n - 1), 0, 1);
-  }
-
-  /** Mencampur satu nilai acuan di antara dua bab yang berdekatan. */
-  private acuanPada(kemajuan: number, ambil: (a: (typeof ACUAN)[number]) => number): number {
+  private fase(kemajuan: number): { i: number; t: number } {
     const n = chapters.length;
     const skala = jepit(kemajuan * n - 0.5, 0, n - 1);
     const i = Math.min(Math.floor(skala), n - 2);
-    const t = halus(skala - i);
-    return ambil(ACUAN[i]!) + (ambil(ACUAN[i + 1]!) - ambil(ACUAN[i]!)) * t;
+    return { i, t: tahanBidikan(skala - i) };
+  }
+
+  /** Mencampur satu nilai acuan memakai fase yang sama dengan kamera. */
+  private acuanPada(f: { i: number; t: number }, ambil: (a: (typeof ACUAN)[number]) => number): number {
+    const a = ambil(ACUAN[f.i]!);
+    const b = ambil(ACUAN[f.i + 1]!);
+    return a + (b - a) * f.t;
   }
 
   gambar(kemajuan: number, waktu: number) {
     const k = jepit(kemajuan, 0, 1);
-    const u = this.parameter(k);
+    const f = this.fase(k);
+    const u = (f.i + f.t) / (chapters.length - 1);
 
     this.jalurPosisi.getPoint(u, this.camera.position);
     this.jalurLihat.getPoint(u, this.sasaran);
 
     // Titik pandang digeser ke kiri sepanjang sumbu kanan kamera, sehingga
     // sistem terdorong ke paruh kanan layar dan kolom naskah tetap lapang.
-    const geser = this.acuanPada(k, (a) => a.geser);
+    const geser = this.acuanPada(f, (a) => a.geser);
     if (geser !== 0) {
       this._maju.copy(this.sasaran).sub(this.camera.position);
       const jarak = this._maju.length();
@@ -137,7 +174,14 @@ export class Dunia {
     }
 
     this.camera.lookAt(this.sasaran);
-    this.camera.rotation.z += this.acuanPada(k, (a) => a.guling);
+    this.camera.rotation.z += this.acuanPada(f, (a) => a.guling);
+
+    // Napas kamera: goyangan amat kecil yang membuat bidikan terasa dipegang
+    // orang, bukan dipaku ke rig. Diam sendirinya saat gerak dikurangi, karena
+    // waktu yang masuk dibekukan di nol.
+    this.camera.rotation.x += Math.sin(waktu * 0.27) * 0.0018;
+    this.camera.rotation.y += Math.sin(waktu * 0.19 + 2.1) * 0.0022;
+    this.camera.rotation.z += Math.sin(waktu * 0.23 + 0.7) * 0.0014;
 
     const keadaan = keadaanPada(k);
 
@@ -147,14 +191,16 @@ export class Dunia {
     this.grid.aturPijar(new Vector3(0, 4, 0));
     this.grid.aturSuasana(HIJAU.clone().lerp(JINGGA, 1 - keadaan.izin), 0.3);
 
-    this.sistem.perbarui(keadaan, waktu, this.camera, this.acuanPada(k, (a) => a.detail));
+    this.sistem.perbarui(keadaan, waktu, this.camera, this.acuanPada(f, (a) => a.detail));
 
-    this.renderer.render(this.scene, this.camera);
+    this.pasca.perbarui(waktu);
+    this.pasca.composer.render();
   }
 
   dispose() {
     this.grid.dispose();
     this.sistem.dispose();
+    this.pasca.dispose();
     this.renderer.dispose();
   }
 }

@@ -72,6 +72,28 @@ web/src/world/grid.ts    shader bidang grid tak hingga
 web/src/world/labels.ts  label teks yang digambar ke canvas saat runtime
 ```
 
+## Lapisan yang membuatnya terasa seperti rekaman
+
+Gerak yang benar saja belum cukup; tanpa empat lapisan ini hasilnya masih
+terbaca sebagai animasi, bukan film.
+
+- **Bidikan ditahan, lalu berpindah.** Kamera diam pada komposisinya selama
+  sekitar separuh bab, lalu berpindah di bagian tengah peralihan. Diukur lewat
+  selisih antar-bingkai: sekitar 2 di tengah bab, melonjak ke 9 di perbatasan.
+  Film tersusun dari bidikan yang ditahan, bukan kamera yang tidak pernah
+  berhenti.
+- **Kamera punya bobot.** Posisinya mengejar posisi gulir lewat pengikut
+  teredam bertetapan 0,16 detik, bukan mengikutinya persis. Tanpa ini kamera
+  berangkat dan berhenti seketika bersama jari.
+- **Pemetaan nada ACES dan bloom.** Kurva nada film meratakan sorotan alih-alih
+  memotongnya di putih, dan bloom membuat cahaya tampak meluber ke lensa.
+- **Bintik film dan vignette**, dikerjakan setelah pemetaan nada, dengan bintik
+  lebih kentara di bayangan — seperti film sungguhan.
+
+Ditambah napas kamera: goyangan rotasi di bawah 0,002 radian yang membuat
+bidikan terasa dipegang orang, bukan dipaku ke rig. Semuanya berhenti sendiri
+saat `prefers-reduced-motion` aktif, karena waktu yang masuk dibekukan di nol.
+
 ## Catatan rancangan
 
 - **Kamera mengorbit, bukan meluncur di rel.** Posisinya diambil dari kurva
@@ -91,6 +113,14 @@ web/src/world/labels.ts  label teks yang digambar ke canvas saat runtime
   saat kedaluwarsa.
 - **Kabut dihitung manual di shader.** `ShaderMaterial` tidak mewarisi
   `scene.fog`.
+- **Tanpa `OutputPass` di ujung rantai pasca-pemrosesan.** Pada versi three ini
+  lintasan adegan sudah menulis nilai siap-tampil ke target composer, sehingga
+  menambahkan `OutputPass` berarti mengenkode sRGB untuk kedua kalinya: hitam
+  pekat merek terangkat jadi kabut abu. Pemetaan nada karena itu dikerjakan
+  oleh lintasan adegan.
+- **Rasio piksel ditahan di layar sempit.** Bloom mengerjakan beberapa lintasan
+  blur tiap kerangka; pada kerapatan ponsel selisihnya tidak terlihat sementara
+  bebannya hampir separuh.
 - **Tetap utuh tanpa WebGL**, dan `prefers-reduced-motion` mematikan
   penghalusan gulir, gerak menganggur, serta penunjuk khusus.
 

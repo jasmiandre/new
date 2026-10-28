@@ -31,6 +31,22 @@ lenis.on("scroll", ({ scroll, limit }: { scroll: number; limit: number }) => {
   kemajuan = limit > 0 ? Math.min(1, Math.max(0, scroll / limit)) : 0;
 });
 
+const jepit = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+
+/** Smootherstep kuintik: berangkat dan berhenti tanpa sentakan. */
+const halus = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+
+/**
+ * Seberapa cepat kamera menyusul posisi gulir, dalam detik.
+ *
+ * Lenis sudah menghaluskan gulir halamannya, tetapi kamera yang mengikuti
+ * angka itu persis tetap terasa ditarik tali: ia berangkat dan berhenti
+ * seketika bersama jari. Penundaan kecil memberi kamera bobot — ia menyusul,
+ * lalu mengendap. Terlalu besar dan halaman terasa lamban, jadi nilainya
+ * sengaja ditahan di bawah seperlima detik.
+ */
+const TAU_KAMERA = 0.16;
+
 /** Memudarkan isi tiap bab di awal dan akhir bagiannya. */
 function perbaruiIsiBab() {
   const tinggi = window.innerHeight;
@@ -39,17 +55,19 @@ function perbaruiIsiBab() {
     const total = kotak.height - tinggi;
     if (total <= 0) continue;
 
-    const lokal = Math.min(1, Math.max(0, -kotak.top / total));
+    const lokal = jepit(-kotak.top / total, 0, 1);
     // Bab pertama sudah berada di puncak halaman saat dimuat, jadi ia tidak
     // punya "masuk" untuk dipudarkan — tanpa pengecualian ini hero tampil kosong.
-    const masuk = indeks === 0 ? 1 : Math.min(1, lokal / 0.1);
-    const keluar = Math.min(1, (1 - lokal) / 0.14);
+    const masuk = indeks === 0 ? 1 : halus(jepit(lokal / 0.12, 0, 1));
+    const keluar = halus(jepit((1 - lokal) / 0.16, 0, 1));
     const tampak = Math.min(masuk, keluar);
 
     const isi = b.firstElementChild as HTMLElement | null;
     if (!isi) continue;
     isi.style.opacity = String(tampak);
-    isi.style.transform = `translateY(${(1 - tampak) * 18}px)`;
+    // Naskah ikut mundur sedikit saat memudar, seperti menjauh dari fokus.
+    const mundur = 1 - tampak;
+    isi.style.transform = `translate3d(0, ${mundur * 26}px, 0) scale(${1 - mundur * 0.018})`;
     isi.style.visibility = tampak < 0.02 ? "hidden" : "visible";
   }
 }
@@ -77,12 +95,25 @@ async function mulai() {
   window.addEventListener("resize", () => dunia?.ubahUkuran());
 
   const awal = performance.now();
+  let sebelumnya = awal;
+  let kemajuanKamera = 0;
+
   const kerangka = (waktu: number) => {
     lenis.raf(waktu);
+
+    // Selisih waktu dijepit: setelah tab kembali aktif, satu lompatan besar
+    // akan menarik kamera sejauh apa pun dalam satu kerangka.
+    const dt = Math.min(0.05, (waktu - sebelumnya) / 1000);
+    sebelumnya = waktu;
+
+    // Pengikut teredam, tidak bergantung laju kerangka: kamera selalu menempuh
+    // pecahan jarak yang sama per satuan waktu, entah layarnya 60 atau 120 Hz.
+    kemajuanKamera += (kemajuan - kemajuanKamera) * (1 - Math.exp(-dt / TAU_KAMERA));
+
     // Gerak menganggur dibekukan ketika pengguna minta gerak dikurangi.
     const detik = kurangiGerak ? 0 : (waktu - awal) / 1000;
 
-    dunia?.gambar(kemajuan, detik);
+    dunia?.gambar(kurangiGerak ? kemajuan : kemajuanKamera, detik);
     hud.perbarui(kemajuan);
     penunjuk.perbarui();
     perbaruiIsiBab();
